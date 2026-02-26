@@ -90,6 +90,9 @@ The best practice would be avoid request validation to encourage better types an
 
 ## Search Query Building
 
+### Sorting
+### Filtering
+
 ## HTTP Status Handling
 
 ## Error Handling
@@ -101,3 +104,9 @@ The best practice would be avoid request validation to encourage better types an
 
 ### Messages
 ### Localization
+
+## API Collection Types
+
+### Endpoint-based
+### Named
+### Resource-sliced
