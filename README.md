@@ -36,9 +36,12 @@ Though it may do much more than that if this seems reasonable or worth trying ou
 ### Example
 
 ```ts
-async function getData(path: string, search: Record<keyof never, string | number>) {
+async function getData(path: string | URL, searchParams?: Record<keyof never, string | number>) {
+  const url = new URL(path, env.HOST)
+  url.searchParams = searchParams
+
   try {
-    const response = await fetch("https://api.example.com/data")
+    const response = await fetch(url)
     if (!response.ok) {
       throw new Error("HTTP error! status: " + response.status)
     }
@@ -66,13 +69,25 @@ You can do that by:
 - Creating a library that provides the API facade based on generated OpenAPI Schemas 
 - Using "monorepository", where both repositories are built together, which allows direct access to backend types via `import` 
 
-The issues arise when a target resource returns a different data for any reasons.
-This particular issue created a "very bad" practice of anotating each property as nullish,
+### Caveats
+
+When a resource returns a different data for any reasons, the types become irrelevant.
+
+This particular issue created a "very bad" practice of _anotating each property as nullish_,
 which creates excesive type checking in every place of usage.
 
 Moreover, the schemas may not be complete, they may contain mistakes or be created for a different content type.
+That's why you need to read the next section.
 
 ## Response Validation
+
+To make sure that data that a server responded with matches the same
+
+### Caveats
+_nothing is perfect_
+
+If server is updated first, while client remains unupdated - the pipe is broken, the user is unhappy.
+If frontend is updated first - the same happens too. This can be healed with _anotating each property as nullish_, which leads to you-know-what (read in the previous section). Another cure is to define what is tolerable for your app and what is vital, this way is a good balance between strict and lazy validation.
 
 ### Request Validation
 
@@ -110,3 +125,13 @@ The best practice would be avoid request validation to encourage better types an
 ### Endpoint-based
 ### Named
 ### Resource-sliced
+
+## Implementations
+
+There are several primary ways of implementing API Client (API Facade).
+
+|Name||
+|---|---|
+|Action-based||
+|Endpoint path as argument||
+|Endpoint path as property||
