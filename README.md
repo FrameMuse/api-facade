@@ -21,6 +21,7 @@ API Facade hides details such as:
 
 - Host names or any other static paths
 - Request Method
+- Request Headers
 - Resource Versions
 
 API Facade helps with:
@@ -85,4 +86,18 @@ The best practice would be avoid request validation to encourage better types an
 
 ## Content Type Conversion
 
-## 
+## Path Params Resolving
+
+## Search Query Building
+
+## HTTP Status Handling
+
+## Error Handling
+
+### Throw vs [Error, Result]
+### Custom Codes
+
+## Notifications
+
+### Messages
+### Localization
