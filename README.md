@@ -10,7 +10,7 @@ The actual backend may not be placed on a single address like `api.example.com`,
 but that's absolutely unnecessary information for a developer. It doesn't help focusing on dedicated resposibilities.
 
 The API term refers not only to external server, usually called "backend", but it can be local File System access
-or anything your program "talks" to.
+or anything your program "talks" to. Though this covers Web-based Resources specifically.
 
 **API** is anything that is not a part of your program that your program needs to negotiate with.
 Another name for API Facade is **API Client**.
