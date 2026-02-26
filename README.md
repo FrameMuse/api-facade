@@ -31,7 +31,8 @@ API Facade helps with:
 - Error handling
 - Defining exact invoke points
 
-Though it may do much more than that if this seems reasonable or worth trying out.
+> [!Note]
+> Though it may do much more than that if this seems reasonable or worth trying out.
 
 ### Example
 
@@ -57,6 +58,8 @@ async function getData(path: string | URL, searchParams?: Record<keyof never, st
 }
 ```
 
+Generally, the API Facade should make it as simple to access a reousrce as calling a regular function.
+
 ## Type Safety
 
 To make your life easier and avoid constant looking into the backend code or the result of an endpoint,
@@ -66,8 +69,9 @@ You can do that by:
 
 - Manually typing request and response for each resource, which can be tough but doable
 - Automatically generating [OpenAPI Schemas](https://swagger.io/specification/) on backend and keeping it up-to-date on frontend
+- Automatically generating types and functions based on OpenAPI Schemas, e.g. by [openapi-codegen](https://github.com/fabien0102/openapi-codegen) (unofficial tool)
 - Creating a library that provides the API facade based on generated OpenAPI Schemas 
-- Using "monorepository", where both repositories are built together, which allows direct access to backend types via `import` 
+- Using "monorepository", where both repositories are built together, which allows direct access to backend types via `import` from frontend
 
 ### Caveats
 
