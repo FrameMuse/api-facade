@@ -55,21 +55,34 @@ async function getData(path: string, search: Record<keyof never, string | number
 
 ## Type Safety
 
-To make your life easier and avoid constantly looking into the backend code or the result of an endpoint,
+To make your life easier and avoid constant looking into the backend code or the result of an endpoint,
 you can provide types for resources you're going to be requesting.
 
 You can do that by:
 
-- Manually typing request and response for each resource, which can be though, but doable
+- Manually typing request and response for each resource, which can be tough but doable
 - Automatically generating [OpenAPI Schemas](https://swagger.io/specification/) on backend and keeping it up-to-date on frontend
 - Creating a library that provides the API facade based on generated OpenAPI Schemas 
-- Using "monorepository", where both repositories are build together, which allows direct access to backend types via `import` 
+- Using "monorepository", where both repositories are built together, which allows direct access to backend types via `import` 
 
 The issues arise when a target resource returns a different data for any reasons.
-This created a "very bad" practice of anotating each property as nullish, which creates excesive type checking in every place of usage.
+This particular issue created a "very bad" practice of anotating each property as nullish,
+which creates excesive type checking in every place of usage.
 
-Moreover, the schemas may not be complete, they may contain mistakes or created for a different
+Moreover, the schemas may not be complete, they may contain mistakes or be created for a different content type.
 
-## Response Integrity
+## Response Validation
 
-## Payload 
+### Request Validation
+
+The request doesn't need validation, especially if Type Safety is already in place.
+
+A validation itself stops process entirely, but errors in the request is always a **developer mistake**.
+Most often this mistake is very minor, it doesn't affect critical paths of the program, but it kills the user action entirely.
+In some cases, user may not be authorized because of extra parameter in the request, which is absurd and thus should be avoided.
+
+The best practice would be avoid request validation to encourage better types and backend error handling (and security).
+
+## Content Type Conversion
+
+## 
