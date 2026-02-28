@@ -210,3 +210,15 @@ flowchart TD
     a2@{ animate: true }
     a3@{ animate: true }
 ```
+
+This allows scaling and maintaing any amount of APIs since each one is indepedent and well-documented,
+while the app itself is abstracted away by defining its own interfaces it works with,
+which allows easier API replacement and creates development "comfort" as the app interfaces are exactly those that are being used directly in components.
+
+> [!Note]
+> This concludes API Facade why you should implement it from both standalone and as a first abstraction layer perspectives.
+> In simpler words, API Facade makes it easier to work with, without going further into abstractions.
+> While if app grows bigger, it's a good foundation for scaling as well.
+
+This doesn't mean you need these complications right now, it just explores how you could potentially scale up when things are multiplying.
+This is both a base for creating reliable systems and guide that you should keep in mind in case you face a need for such complexity. 
