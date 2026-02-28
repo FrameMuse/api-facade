@@ -154,21 +154,19 @@ The best practice would be avoid request validation at all to encourage better t
 ### Messages
 ### Localization
 
+## Body Mocking
+
 ## API Collection Types
 
 ### Endpoint-based
 ### Named
 ### Resource-sliced
 
-## Implementations
+## Recipes
 
 There are several primary ways of implementing API Client (API Facade).
 
-|Name||
-|---|---|
-|Action-based||
-|Endpoint path as argument||
-|Endpoint path as property||
+
 
 ## Advancing Further
 
