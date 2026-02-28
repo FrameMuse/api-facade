@@ -1,19 +1,16 @@
 # API Facade
 
-"Facade" is a well-known pattern in software development,
+**API** is anything that is not a part of your program that your program needs to negotiate with.
+Another name for API Facade is **API Client**.
+
+**Facade** is a well-known pattern in software development,
 which simply means creating a wrapper over something you want to **enhance** or **conceal**.
 
 Wrapping API access is a very common practice across all web, mobile and desktop apps.
 It helps to distinguish between generic and vital requests to web resources.
 
-The actual backend may not be placed on a single address like `api.example.com`, but on many ones,
-but that's absolutely unnecessary information for a developer. It doesn't help focusing on dedicated resposibilities.
-
 The API term refers not only to external server, usually called "backend", but it can be local File System access
 or anything your program "talks" to. Though this covers Web-based Resources specifically.
-
-**API** is anything that is not a part of your program that your program needs to negotiate with.
-Another name for API Facade is **API Client**.
 
 ## Role
 
@@ -94,15 +91,17 @@ That's why you need to read the next section.
 To make sure that data that a server responded with matches some expected structure, [JSON Schema](https://json-schema.org/understanding-json-schema/about) validation is used.
 There are many ways of make sure a response is correct, but JSON Schema is most convient as it's declared as JSON and can be used for type inference as well.
 
-Thi
+Such schema is universal for both consumer and provider:
+a provider (e.g. backend) defines object schemas manually or via Decorators,
+a consumer (e.g. frontend) infers or generates types from the schemas, creating well-documented provider representation.
 
 > [!CAUTION]
-> If server is updated first, while client remains unupdated - the pipe is broken, the user is unhappy.
-> If frontend is updated first - the same happens too.
+> If provider is updated first, while consumer remains unupdated - the pipe is broken.
+> If consumer is updated first - the same happens too.
 
 This can be healed with _anotating each property as nullish_, which leads to ... (read in the previous section).
-Another cure is to define what is tolerable for your app and what is vital, this way is a good balance between strict and lazy validation.
-But it introduces inconsistencies between services,
+Another cure is to define what is tolerable for your app and what is vital.
+It's a good balance between strict and lazy validation, but it introduces inconsistencies between services types.
 
 ### Best Practices
 
@@ -170,3 +169,34 @@ There are several primary ways of implementing API Client (API Facade).
 |Action-based||
 |Endpoint path as argument||
 |Endpoint path as property||
+
+## Advancing Further
+
+The API may not be placed on a single address like `api.example.com`, but on many ones,
+though that's absolutely unnecessary information for a developer - it doesn't help focusing on dedicated resposibilities.
+In this case such facade may wrap several different API servers combining them under one.
+This creates layers separation, which is easier to maintain.
+
+The API facade may be the first layer for your application, especially if you're aiming for scalability.
+If you mix several different APIs into one API facade, it becomes harder to distinguish between ones.
+
+So the API facade as well as documentation should be indepented of the service it is used in,
+that independent so it can be copy-pasted into a different project easily. This will make it much easier to maintain if you have many ones.
+
+However, the API specification and the face for your app is just where the API itself becomes mentally predictable.
+The app (e.g. frontend or consumer server) should define its own data model.
+
+As data transfered is always in a serializable format, it often misses nativity: dates as `string`, phonenumber as `nuumber`.
+While this may work now, but it can become tedious as the app scales - those values should be mapped on every occasion.
+
+That's where we're creating another layer - Mapping.
+That's where you transform recieved data to what is more "comfortable" to use in your app.
+
+Furthermore, it's very common to have a resource management layer that handles caching, retries, refetching and mutations.
+The most popular nowadays example is [TanStack Query](https://tanstack.com/query/latest).
+
+The overall architecture graph looks like this:
+
+```mermaid
+
+```
