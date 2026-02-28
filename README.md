@@ -73,9 +73,15 @@ You can do that by:
 - Creating a library that provides the API facade based on generated OpenAPI Schemas 
 - Using "monorepository", where both repositories are built together, which allows direct access to backend types via `import` from frontend
 
-### Caveats
+> [!Note]
+> The OpenAPI specification is actually for **Open** API services, though even if your API is exclusive to internal services,
+> it's common to see it's used as playground and to ease understand of requested sources.
+> But you should make sure it's protected by a password/auth to avoid any potential risks.
 
-When a resource returns a different data for any reasons, the types become irrelevant.
+Theasasasas
+
+> [!CAUTION]
+> When a resource returns a different data for any reasons, the types become irrelevant.
 
 This particular issue created a "very bad" practice of _anotating each property as nullish_,
 which creates excesive type checking in every place of usage.
@@ -85,13 +91,18 @@ That's why you need to read the next section.
 
 ## Response Validation
 
-To make sure that data that a server responded with matches the same
+To make sure that data that a server responded with matches some expected structure, [JSON Schema](https://json-schema.org/understanding-json-schema/about) validation is used.
+There are many ways of make sure a response is correct, but JSON Schema is most convient as it's declared as JSON and can be used for type inference as well.
 
-### Caveats
-_nothing is perfect_
+Thi
 
-If server is updated first, while client remains unupdated - the pipe is broken, the user is unhappy.
-If frontend is updated first - the same happens too. This can be healed with _anotating each property as nullish_, which leads to you-know-what (read in the previous section). Another cure is to define what is tolerable for your app and what is vital, this way is a good balance between strict and lazy validation.
+> [!CAUTION]
+> If server is updated first, while client remains unupdated - the pipe is broken, the user is unhappy.
+> If frontend is updated first - the same happens too.
+
+This can be healed with _anotating each property as nullish_, which leads to ... (read in the previous section).
+Another cure is to define what is tolerable for your app and what is vital, this way is a good balance between strict and lazy validation.
+But it introduces inconsistencies between services,
 
 ### Best Practices
 
@@ -104,9 +115,12 @@ Of course, you can allow them being thrown as well, that's up to you to decide w
 
 Make sure the backend (or remote) server has tests if response mismatch happens too often in the same place.
 
-And remember that response mismatch is always backend issue, you don't need to torture frontend (or your server), it can't ensure response.
+And remember that response mismatch is always backend issue, you don't need to torture frontend (or your server).
 You should only well-type and create safe guards if something doesn't work out as it's planned, but it shouldn't crash your app/server,
 instead it should keep it going.
+
+To keep track of errors in production, use montinoring services like Sentry.
+They will log any errors happening in production, which you can later analyze and fix.
 
 ### Request Validation
 
