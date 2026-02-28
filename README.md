@@ -198,5 +198,15 @@ The most popular nowadays example is [TanStack Query](https://tanstack.com/query
 The overall architecture graph looks like this:
 
 ```mermaid
+flowchart TD
+    AM(App Model) <-.-> |Interfaces| App
+    ARM[/App Resource Manager/] --> AM
 
+    A_API[/Auth API\] --> API_F1{{Auth API Facade}} --> API_M1[User Mapping] a1@--> ARM
+    B_API[/Blog API\] --> API_F2{{Blog API Facade}} --> API_M2[Articles Mapping] a2@--> ARM
+    F_API[/Fonts API\] --> API_F3{{Fonts API Facade}} --> API_M3[Fonts Mapping] a3@--> ARM
+    
+    a1@{ animate: true }
+    a2@{ animate: true }
+    a3@{ animate: true }
 ```
