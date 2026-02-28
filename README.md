@@ -93,15 +93,32 @@ _nothing is perfect_
 If server is updated first, while client remains unupdated - the pipe is broken, the user is unhappy.
 If frontend is updated first - the same happens too. This can be healed with _anotating each property as nullish_, which leads to you-know-what (read in the previous section). Another cure is to define what is tolerable for your app and what is vital, this way is a good balance between strict and lazy validation.
 
+### Best Practices
+
+Don't create validation problems for yourself.
+Don't validate the reponse aggressively in production: don't throw errors, remove unknown properties, ignore nulish mismatch and log warnning on value<->type mismatch.
+Let the error happen later in the code to hint where the data wasn't deliveted to, this will help with debugging in production.
+
+In development (debug) mode, log the errors and maybe make "toasts" to see something is wrong immediately.
+Of course, you can allow them being thrown as well, that's up to you to decide what is more convient for you in development.
+
+Make sure the backend (or remote) server has tests if response mismatch happens too often in the same place.
+
+And remember that response mismatch is always backend issue, you don't need to torture frontend (or your server), it can't ensure response.
+You should only well-type and create safe guards if something doesn't work out as it's planned, but it shouldn't crash your app/server,
+instead it should keep it going.
+
 ### Request Validation
 
 The request doesn't need validation, especially if Type Safety is already in place.
 
-A validation itself stops process entirely, but errors in the request is always a **developer mistake**.
-Most often this mistake is very minor, it doesn't affect critical paths of the program, but it kills the user action entirely.
+A validation itself stops process entirely, but errors in the request is always a **developer mistake** either from one side or another.
+As you may already read in the previous section - errors should not be thrown in production but only in development.
+
+Most often this mistake is very minor, it doesn't affect critical paths of the program, but it kills the user action entirely if strict validation is in place.
 In some cases, user may not be authorized because of extra parameter in the request, which is absurd and thus should be avoided.
 
-The best practice would be avoid request validation to encourage better types and backend error handling (and security).
+The best practice would be avoid request validation at all to encourage better types on frontend + security and error handling on backend.
 
 ## Content Type Conversion
 
