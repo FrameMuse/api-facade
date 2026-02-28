@@ -62,8 +62,8 @@ Generally, the API Facade should make it as simple to access a reousrce as calli
 
 ## Type Safety
 
-To make your life easier and avoid constant looking into the backend code or the result of an endpoint,
-you can provide types for resources you're going to be requesting.
+To make your life easier and avoid constant looking into the backend code or in the result of an endpoint,
+you can add types for resources you're going to be requesting, so your IDE can hint you.
 
 You can do that by:
 
