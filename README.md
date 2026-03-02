@@ -55,7 +55,7 @@ async function getData(path: string | URL, searchParams?: Record<keyof never, st
 }
 ```
 
-Generally, the API Facade should make it as simple to access a reousrce as calling a regular function.
+Generally, the API Facade should make it as simple to access a resource as calling a regular function.
 
 ## Type Safety
 
@@ -67,7 +67,7 @@ You can do that by:
 - Manually typing request and response for each resource, which can be tough but doable
 - Automatically generating [OpenAPI Schemas](https://swagger.io/specification/) on backend and keeping it up-to-date on frontend
 - Automatically generating types and functions based on OpenAPI Schemas, e.g. by [openapi-codegen](https://github.com/fabien0102/openapi-codegen) (unofficial tool)
-- Creating a library that provides the API facade based on generated OpenAPI Schemas 
+- Creating a library that provides the API facade based on generated OpenAPI Schemas
 - Using "monorepository", where both repositories are built together, which allows direct access to backend types via `import` from frontend
 
 > [!Note]
@@ -80,8 +80,8 @@ Theasasasas
 > [!CAUTION]
 > When a resource returns a different data for any reasons, the types become irrelevant.
 
-This particular issue created a "very bad" practice of _anotating each property as nullish_,
-which creates excesive type checking in every place of usage.
+This particular issue created a "very bad" practice of _annotating each property as nullish_,
+which creates excessive type checking in every place of usage.
 
 Moreover, the schemas may not be complete, they may contain mistakes or be created for a different content type.
 That's why you need to read the next section.
@@ -89,7 +89,7 @@ That's why you need to read the next section.
 ## Response Validation
 
 To make sure that data that a server responded with matches some expected structure, [JSON Schema](https://json-schema.org/understanding-json-schema/about) validation is used.
-There are many ways of make sure a response is correct, but JSON Schema is most convient as it's declared as JSON and can be used for type inference as well.
+There are many ways of make sure a response is correct, but JSON Schema is most convenient as it's declared as JSON and can be used for type inference as well.
 
 Such schema is universal for both consumer and provider:
 a provider (e.g. backend) defines object schemas manually or via Decorators,
@@ -99,18 +99,18 @@ a consumer (e.g. frontend) infers or generates types from the schemas, creating 
 > If provider is updated first, while consumer remains unupdated - the pipe is broken.
 > If consumer is updated first - the same happens too.
 
-This can be healed with _anotating each property as nullish_, which leads to ... (read in the previous section).
+This can be healed with _annotating each property as nullish_, which leads to ... (read in the previous section).
 Another cure is to define what is tolerable for your app and what is vital.
 It's a good balance between strict and lazy validation, but it introduces inconsistencies between services types.
 
 ### Best Practices
 
 Don't create validation problems for yourself.
-Don't validate the reponse aggressively in production: don't throw errors, remove unknown properties, ignore nulish mismatch and log warnning on value<->type mismatch.
-Let the error happen later in the code to hint where the data wasn't deliveted to, this will help with debugging in production.
+Don't validate the response aggressively in production: don't throw errors, remove unknown properties, ignore nullish mismatch and log warning on value<->type mismatch.
+Let the error happen later in the code to hint where the data wasn't delivered to, this will help with debugging in production.
 
 In development (debug) mode, log the errors and maybe make "toasts" to see something is wrong immediately.
-Of course, you can allow them being thrown as well, that's up to you to decide what is more convient for you in development.
+Of course, you can allow them being thrown as well, that's up to you to decide what is more convenient for you in development.
 
 Make sure the backend (or remote) server has tests if response mismatch happens too often in the same place.
 
@@ -118,7 +118,7 @@ And remember that response mismatch is always backend issue, you don't need to t
 You should only well-type and create safe guards if something doesn't work out as it's planned, but it shouldn't crash your app/server,
 instead it should keep it going.
 
-To keep track of errors in production, use montinoring services like Sentry.
+To keep track of errors in production, use monitoring services like Sentry.
 They will log any errors happening in production, which you can later analyze and fix.
 
 ### Request Validation
@@ -140,6 +140,7 @@ The best practice would be avoid request validation at all to encourage better t
 ## Search Query Building
 
 ### Sorting
+
 ### Filtering
 
 ## HTTP Status Handling
@@ -147,11 +148,13 @@ The best practice would be avoid request validation at all to encourage better t
 ## Error Handling
 
 ### Throw vs [Error, Result]
+
 ### Custom Codes
 
 ## Notifications
 
 ### Messages
+
 ### Localization
 
 ## Body Mocking
@@ -159,36 +162,36 @@ The best practice would be avoid request validation at all to encourage better t
 ## API Collection Types
 
 ### Endpoint-based
+
 ### Named
+
 ### Resource-sliced
 
 ## Recipes
 
 There are several primary ways of implementing API Client (API Facade).
 
-
-
 ## Advancing Further
 
 The API may not be placed on a single address like `api.example.com`, but on many ones,
-though that's absolutely unnecessary information for a developer - it doesn't help focusing on dedicated resposibilities.
+though that's absolutely unnecessary information for a developer - it doesn't help focusing on dedicated responsibilities.
 In this case such facade may wrap several different API servers combining them under one.
 This creates layers separation, which is easier to maintain.
 
 The API facade may be the first layer for your application, especially if you're aiming for scalability.
 If you mix several different APIs into one API facade, it becomes harder to distinguish between ones.
 
-So the API facade as well as documentation should be indepented of the service it is used in,
+So the API facade as well as documentation should be independent of the service it is used in,
 that independent so it can be copy-pasted into a different project easily. This will make it much easier to maintain if you have many ones.
 
 However, the API specification and the face for your app is just where the API itself becomes mentally predictable.
 The app (e.g. frontend or consumer server) should define its own data model.
 
-As data transfered is always in a serializable format, it often misses nativity: dates as `string`, phonenumber as `nuumber`.
+As data transferred is always in a serializable format, it often misses nativity: dates as `string`, phonenumber as `number`.
 While this may work now, but it can become tedious as the app scales - those values should be mapped on every occasion.
 
 That's where we're creating another layer - Mapping.
-That's where you transform recieved data to what is more "comfortable" to use in your app.
+That's where you transform received data to what is more "comfortable" to use in your app.
 
 Furthermore, it's very common to have a resource management layer that handles caching, retries, refetching and mutations.
 The most popular nowadays example is [TanStack Query](https://tanstack.com/query/latest).
@@ -209,7 +212,7 @@ flowchart TD
     a3@{ animate: true }
 ```
 
-This allows scaling and maintaing any amount of APIs since each one is indepedent and well-documented,
+This allows scaling and maintaining any amount of APIs since each one is independent and well-documented,
 while the app itself is abstracted away by defining its own interfaces it works with,
 which allows easier API replacement and creates development "comfort" as the app interfaces are exactly those that are being used directly in components.
 
@@ -219,4 +222,4 @@ which allows easier API replacement and creates development "comfort" as the app
 > While if app grows bigger, it's a good foundation for scaling as well.
 
 This doesn't mean you need these complications right now, it just explores how you could potentially scale up when things are multiplying.
-This is both a base for creating reliable systems and guide that you should keep in mind in case you face a need for such complexity. 
+This is both a base for creating reliable systems and guide that you should keep in mind in case you face a need for such complexity.
