@@ -36,7 +36,7 @@ API Facade helps with:
 ```ts
 async function getData(path: string | URL, searchParams?: Record<keyof never, string | number>) {
   const url = new URL(path, env.HOST)
-  url.searchParams = searchParams
+  url.search = new URLSearchParams(searchParams).toString()
 
   try {
     const response = await fetch(url)
