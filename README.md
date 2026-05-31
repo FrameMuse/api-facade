@@ -1956,6 +1956,20 @@ implemented in `API.shape` and relies on `zod`’s `.mock()` support.
 Set `mock: "auto"` to only mock when validation fails; `"always"` forces mocks
 for every call.
 
+
+
+## Common Headers
+
+## API Versioning
+global/local
+- path
+- headers
+
+## Caching
+## Batching
+## Interuptions
+## Server-Sent Events
+
 ## API Recipes Collection
 
 ### Endpoint-based
