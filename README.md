@@ -1427,6 +1427,9 @@ deal with tokens, refresh flows, or credential storage.
   - `Authorization` header injected in a request interceptor
   - `onAuthError` callback for consumer-side redirect
   - See [`APIStable.ts`](./api/stable/APIStable.ts) for a production example
+- **Auth domain patterns**
+  - Multi-step intents, attempt persistence, session lifecycle
+  - See [`api/auth/README.md`](./api/auth/README.md) for the higher-level auth domain
 
 ## Error Handling
 
