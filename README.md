@@ -227,6 +227,74 @@ Uploading files introduces unique challenges: progress feedback, multipart encod
   - Returning `{ promise, cancel }` tuple
 - **Preview generation** — creating object URLs from local files before upload
 
+## Enhancing `fetch` Instead of Replacing It
+
+`fetch` is universal and well-known. A common desire is to improve it — but that
+doesn't have to mean hiding it behind a completely new API.
+
+### The overshadow approach
+
+Wrapping `fetch` in a custom `apiClient(endpoint, body?)` is the most common pattern:
+
+```ts
+async function apiClient<T>(endpoint: string, body?: unknown): Promise<T | null> {
+  const response = await fetch(`https://api.example.com${endpoint}`, {
+    method: body ? "POST" : "GET",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!response.ok) return null
+  if (response.status === 204) return null
+  return response.json()
+}
+```
+
+This is **perfectly fine**. Many real projects work this way (see
+`recipes/naive/`). It's simple and sufficient.
+
+### The enhance approach
+
+The alternative is to keep `fetch`'s signature but add composable helpers that
+produce or consume native `fetch` types — `Request`, `Response`, `Headers`:
+
+```ts
+// Helper that returns a standard Request
+function apiRequest(path: string, init?: RequestInit & { body?: unknown }): Request {
+  const url = new URL(path, API_HOST)
+  const headers = new Headers(init?.headers)
+  if (init?.body && !(init.body instanceof FormData || init.body instanceof Blob)) {
+    headers.set("Content-Type", "application/json")
+  }
+  return new Request(url, {
+    ...init,
+    headers,
+    body: init?.body ? JSON.stringify(init.body) : undefined,
+  })
+}
+
+// Helper that processes a standard Response
+function processResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) throw new HTTPError(response.statusText, response.status)
+  if (response.status === 204) return null as T
+  return response.json()
+}
+
+// Usage — still looks and feels like fetch
+fetch(apiRequest("/users", { body: { name: "John" } }))
+  .then(processResponse<User>)
+```
+
+No new signature to learn — `Request`, `Response`, `Headers` are the same
+objects `fetch` already uses. The helpers are optional: you can call raw
+`fetch` for any edge case.
+
+Both `QueryAction.toRequest()` in `api/QueryAction.ts` and `getRequest()` in
+`recipes/light/api.ts` follow this philosophy.
+
+> **Note:** Start with whichever approach feels more natural. The overshadow
+> pattern is simpler for small projects; the enhance pattern gives more
+> flexibility as the facade grows. Neither is wrong.
+
 ## Path Params Resolving
 
 REST endpoints may include variable segments like `/user/{id}` or `/user/:id`. A facade should
