@@ -80,7 +80,7 @@ You can do that by:
 > it's common to see it's used as playground and to ease understand of requested sources.
 > But you should make sure it's protected by a password/auth to avoid any potential risks.
 
-Theasasasas
+Despite these challenges, type safety remains a valuable goal.
 
 > [!CAUTION]
 > When a resource returns a different data for any reasons, the types become irrelevant.
@@ -207,6 +207,25 @@ export function toBody(data: any, contentType: string) {
 ```
 
 Look at [`BodyTypeConverter`](./api/BodyTypeConverter.ts) for a more elaborate implementation that also handles parsing responses.
+
+## File Upload Progress
+
+Uploading files introduces unique challenges: progress feedback, multipart encoding, and size limits.
+
+### Outline
+
+- **Progress tracking** — using `XMLHttpRequest` `upload.onprogress` or `fetch` with a `ReadableStream`
+  - Wrapping `fetch` to report bytes sent vs total
+  - Percentage calculation and throttled callbacks
+- **Multipart encoding** — `FormData` with `Blob`/`File` entries
+  - Auto-detection of file fields vs regular fields
+  - Content-Type boundary handling
+- **Upload cancellation** — `AbortController` wired to a cancel button
+- **Retry for failed chunks** — resumable uploads with range headers
+- **Progress in the facade API**
+  - `upload(resource, file, { onProgress })` callback pattern
+  - Returning `{ promise, cancel }` tuple
+- **Preview generation** — creating object URLs from local files before upload
 
 ## Path Params Resolving
 
@@ -1311,6 +1330,36 @@ try {
 It may happen that some of these practices appear in the API that you're dealing with.
 If you can't affect the API in anyway - just keep working on that. After all, there might be an actual reason for that exact behavior. Just know APIs can be different.
 
+## Authentication Patterns
+
+The facade is the ideal place to centralize authentication logic so individual call sites never
+deal with tokens, refresh flows, or credential storage.
+
+### Outline
+
+- **Token-based auth (Bearer / JWT)**
+  - Storage: memory, `localStorage`, `sessionStorage`, httpOnly cookie
+  - Token lifecycle: acquire, attach, refresh, retry on 401
+  - Auto-refresh with request batching — queue concurrent calls while refreshing
+    (implemented in `API.ts` `APIAuthorization`)
+- **API key auth**
+  - Header: `X-API-Key`
+  - Query param fallback when headers aren't available (e.g., SSE)
+- **OAuth 2.0 flows**
+  - Authorization code + PKCE for SPAs
+  - Client credentials for server-to-server
+  - Implicit flow (deprecated, but still encountered)
+- **Multi-tenant auth**
+  - Per-tenant credentials or tokens
+  - Tenant resolution from subdomain or header
+- **Auth retry strategy**
+  - Single 401 → refresh → retry original request
+  - Multiple 401s → broadcast logout
+- **Facade integration**
+  - `Authorization` header injected in a request interceptor
+  - `onAuthError` callback for consumer-side redirect
+  - See [`APIStable.ts`](./api/stable/APIStable.ts) for a production example
+
 ## Error Handling
 
 ### Throw vs [Error, Result]
@@ -1960,15 +2009,422 @@ for every call.
 
 ## Common Headers
 
+Headers that are repeated across every request (auth tokens, content types, correlation IDs) should be
+set once in the facade rather than duplicated at every call site.
+
+### Outline
+
+- **Static headers** — `Content-Type`, `Accept`, `Authorization` scheme prefix
+- **Dynamic headers** — tokens, request IDs, session info (injected via config or interceptors)
+- **Correlation / trace IDs** — generating and forwarding `X-Request-ID` for debugging
+- **Header normalization** — casing conventions, merging consumer-provided headers
+- **Security headers** — `X-Content-Type-Options`, `Strict-Transport-Security` when the facade is server-side
+- **Implementation pattern** — `defaultHeaders()` method + per-request `mergeHeaders()` override
+
 ## API Versioning
-global/local
-- path
-- headers
+
+APIs evolve. The facade should make version transitions manageable without breaking consumers.
+
+### Picking a Strategy
+
+There are three common ways to communicate the desired version to the server, each with
+different trade-offs for the facade and its consumers.
+
+#### 1. Path-Based Versioning
+
+The version is part of the URL path.
+
+```ts
+// Facade config
+const api = new API({
+  baseURL: "https://api.example.com",
+  version: "v2",                          // Default version
+})
+
+// Path template includes {version}
+// GET https://api.example.com/v2/users/42
+const user = await api.fetch.GET["/{version}/users/{id}"]({
+  pathParams: { id: 42 },
+})
+
+// Override per-request
+const userV1 = await api.fetch.GET["/{version}/users/{id}"]({
+  pathParams: { id: 42, version: "v1" },  // Override defaults
+})
+```
+
+**Pros:** Explicit, cache-friendly (different URLs = different cache keys), easy to route on
+the server.
+
+**Cons:** URL changes for every version bump, can lead to URL drift if many versions are
+active simultaneously.
+
+#### 2. Header-Based Versioning (Content Negotiation)
+
+The version is declared in the `Accept` header.
+
+```ts
+const api = new API({
+  baseURL: "https://api.example.com",
+  headers: {
+    "Accept": "application/vnd.api+json; version=2",
+  },
+})
+
+// The URL stays clean:
+// GET https://api.example.com/users/42
+// Accept: application/vnd.api+json; version=2
+
+// Override per request
+const response = await fetch("/users/42", {
+  headers: {
+    "Accept": "application/vnd.api+json; version=1",
+  },
+})
+```
+
+**Pros:** URLs are stable and clean; version is a concern of the wire protocol, not the
+resource identifier.
+
+**Cons:** Server must parse `Accept` headers; cached URLs don't differentiate versions
+(must vary on `Accept`); less visible during debugging.
+
+#### 3. Query-Param Versioning
+
+The version is appended as a query parameter.
+
+```ts
+const url = new URL("/users/42", api.baseURL)
+url.searchParams.set("api-version", "2024-01-01")
+// GET https://api.example.com/users/42?api-version=2024-01-01
+```
+
+Often used with **date-based versions** (`2024-01-01`, `2024-06-15`) instead of incrementing
+integers, which communicates the effective date of the contract.
+
+**Pros:** Simple to implement on both client and server; easy to override (just change a
+param).
+
+**Cons:** Pollutes query strings; can interfere with server-side caching if not handled
+carefully.
+
+### Facade Architecture
+
+However you choose to communicate the version, the facade should centralise the logic so
+individual call sites never think about it.
+
+```ts
+// Endpoint resolution with version interpolation
+// See api/Endpoint.ts for the full implementation
+class API {
+  constructor(private config: { baseURL: string; version: string }) {}
+
+  private resolveURL(template: string): string {
+    // Inject version into path templates that contain {version}
+    const path = template.replace("{version}", this.config.version)
+    return `${this.config.baseURL}${path}`
+  }
+
+  // For header-based versioning, the interceptor adds the Accept header
+  private async fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+    const headers = new Headers(init?.headers)
+    if (!headers.has("Accept")) {
+      headers.set("Accept", `application/vnd.api+json; version=${this.config.version}`)
+    }
+    return fetch(input, { ...init, headers })
+  }
+}
+```
+
+### Breaking vs Non-Breaking Changes
+
+Not every change needs a new version. The facade can help consumers distinguish between
+them at development time.
+
+| Change | Category | Facade Impact |
+|--------|----------|--------------|
+| Adding a field | Non-breaking | None — consumer ignores unknown fields |
+| Adding an endpoint | Non-breaking | None — new method, old ones unchanged |
+| Deprecating a field | Non-breaking | Log warning in dev mode |
+| Removing a field | Breaking | Consumer code will type-error |
+| Renaming a field | Breaking | Requires migration |
+| Changing a field type | Breaking | Validation fails, type error |
+| Removing an endpoint | Breaking | Method disappears from facade |
+
+```ts
+// Detect breaking responses in development
+async function fetchUser(id: number) {
+  const response = await this.fetch(`/users/${id}`)
+  const data = await response.json()
+
+  if (import.meta.env.DEV && response.headers.get("Deprecation")) {
+    console.warn(
+      `[API] ${response.url} is deprecated since ${response.headers.get("Sunset")}`,
+    )
+  }
+
+  return data
+}
+```
+
+### Multi-Version Facade Structure
+
+When you need to support two API versions simultaneously (e.g. during a gradual migration),
+there are several structural approaches.
+
+#### Option A: Single Facade with Versioned Path Templates
+
+```ts
+class API {
+  // Endpoint definitions carry their own version
+  private endpoints = {
+    getUser:  { method: "GET",  path: "/v1/users/{id}" },
+    createUserV2: { method: "POST", path: "/v2/users" },
+  }
+}
+```
+
+Best for: short migration windows, few endpoints changing.
+
+#### Option B: Versioned Facade Wrappers
+
+```ts
+const v1 = new APIV1({ baseURL: "https://api.example.com" })
+const v2 = new APIV2({ baseURL: "https://api.example.com" })
+
+// Consumer chooses
+const user = await v2.users.fetch(42)
+```
+
+Best for: long-lived version support, significantly different contracts.
+
+#### Option C: Adapter / Mapping Layer
+
+```ts
+// v2 facade internally maps to v1 for unchanged endpoints
+class APIV2 {
+  private v1 = new APIV1({ baseURL: this.baseURL })
+
+  async getUser(id: number) {
+    // Unchanged — delegates to v1
+    return this.v1.getUser(id)
+  }
+
+  async createUser(data: NewUserDTO) {
+    // Changed — uses v2 endpoint
+    return this.fetch("/v2/users", { method: "POST", body: JSON.stringify(data) })
+  }
+}
+```
+
+Best for: minimising duplication when most endpoints remain the same.
+
+### Deprecation Lifecycle
+
+Communicating end-of-life to consumers is as important as the versioning mechanism itself.
+
+```ts
+// Facade detects deprecation headers and surfaces them
+async function handleResponse(response: Response) {
+  const sunset = response.headers.get("Sunset")       // RFC 8594
+  const deprecation = response.headers.get("Deprecation")  // RFC 8594
+
+  if (deprecation !== null) {
+    const info = {
+      endpoint: response.url,
+      deprecatedSince: deprecation,
+      sunsetDate: sunset ?? "unknown",
+    }
+
+    if (import.meta.env.DEV) {
+      console.warn(`[API] Deprecated endpoint: ${info.endpoint}`, info)
+      // Optionally show a toast in development
+      showToast(`Endpoint ${info.endpoint} is deprecated`, "warning")
+    }
+
+    // Track for analytics
+    trackDeprecation(info)
+  }
+
+  // ... rest of response handling
+}
+
+// Suggested timeline:
+// v2.0 released         → v1 tagged as "deprecated" (Deprecation header added)
+// v2.1 released         → v1 gets Sunset header: 6 months from now
+// v2.3 released         → v1 returns 410 Gone
+// v2.4 released         → v1 code removed from facade
+```
+
+### Backend Handling
+
+The server must route and validate version requests consistently.
+
+**Express:**
+```ts
+// Path-based
+app.use("/api/v1/users", v1UserRouter)
+app.use("/api/v2/users", v2UserRouter)
+
+// Header-based
+app.use("/api/users", (req, res, next) => {
+  const version = req.accepts("application/vnd.api+json; version=1")
+    ? "v1" : "v2"
+  req.apiVersion = version
+  next()
+})
+```
+
+**Django (URL patterns):**
+```python
+# urls.py
+from django.urls import path, include
+
+urlpatterns = [
+    path("api/v1/", include("v1_urls")),
+    path("api/v2/", include("v2_urls")),
+]
+```
+
+**FastAPI (sub-applications):**
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
+v1 = FastAPI(prefix="/api/v1")
+v2 = FastAPI(prefix="/api/v2")
+
+app.mount("/api/v1", v1)
+app.mount("/api/v2", v2)
+```
+
+### Decision Guide
+
+| Situation | Recommended Strategy |
+|-----------|---------------------|
+| Public API, many consumers | Path-based (`/v1/`, `/v2/`) |
+| Internal / single-consumer API | Header-based (cleaner URLs) |
+| Date-based release cadence | Query-param (`?api-version=2024-01-01`) |
+| Short migration window | Single facade + versioned paths |
+| Long-lived parallel versions | Versioned facade wrappers |
+| Most endpoints unchanged | Adapter/mapping layer |
+| Want explicit cache differentiation | Path-based or query-param |
+| Want clean URLs at all costs | Header-based |
 
 ## Caching
+
+Client-side caching reduces redundant network requests and improves perceived performance.
+
+### Outline
+
+- **HTTP cache headers** — `Cache-Control`, `ETag`, `Last-Modified`, `Expires`
+  - Conditional requests with `If-None-Match` / `If-Modified-Since`
+  - 304 Not Modified handling
+- **Application-level caching**
+  - In-memory cache (Map, LRU)
+  - Persistent cache (localStorage, IndexedDB)
+  - Cache key design (method + URL + query params)
+- **Stale-while-revalidate pattern**
+  - Serve stale data immediately, refresh in background
+- **Cache invalidation** — after mutations (POST/PUT/PATCH/DELETE)
+  - Tag-based invalidation
+  - Optimistic updates with rollback
+- **Integration with TanStack Query** — the `api/` implementation already uses it; explain `staleTime`,
+  `gcTime`, `queryKey` conventions
+
 ## Batching
-## Interuptions
+
+Combining multiple requests into one reduces overhead for bulk operations or when the backend
+supports it.
+
+### Outline
+
+- **Request bundling** — `POST /batch` with an array of operations
+  - JSON-RPC style batch
+  - Custom batch envelope
+- **Automatic batching** — collect individual calls within a microtask and flush as one
+  - Windowed batching (timeout-based)
+  - Size-based batching (N operations per batch)
+- **Deduplication** — merge identical concurrent requests into one network call
+- **Trade-offs** — increased latency per operation vs. reduced connection overhead
+- **Implementation** — `batchQueue` + `flushInterval` in the facade core
+
+## Interruptions
+
+Network requests can fail or be aborted. The facade should handle interruptions gracefully.
+
+### Outline
+
+- **Timeout handling** — `AbortSignal` with `AbortController`
+  - Per-request timeout
+  - Default timeout in facade config
+- **Retry on interruption** — distinguish network failure from server error
+- **Partial response handling** — if a stream or large payload is interrupted mid-way
+- **User-initiated cancellation** — navigating away, closing a modal
+  - Propagating `AbortSignal` from UI to facade
+- **Recovery** — re-establishing interrupted SSE / WebSocket connections
+
 ## Server-Sent Events
+
+SSE provides a one-way real-time channel from server to client over a single HTTP connection.
+
+### Outline
+
+- **SSE vs WebSocket** — when to use each (unidirectional vs bidirectional)
+- **EventSource API** — basic usage, `message` / `error` events
+- **Facade abstraction**
+  - Typed event names and payloads
+  - Auto-reconnect with exponential backoff
+  - `last-event-id` for missed event recovery
+- **Connection lifecycle** — open, streaming, error, closed
+- **Integration with Observable / RxJS** — `fromEventSource(url)` pattern
+- **See also** — the `events` property in `Facade.ts`
+
+## Retry Strategies
+
+Network calls fail. The facade should encode the retry policy so consumers don't scatter
+retry logic across the codebase.
+
+### Outline
+
+- **When to retry**
+  - Idempotent methods only: GET, PUT, DELETE, HEAD, OPTIONS
+  - Server errors (5xx): retry eligible
+  - Client errors (4xx): never retry (except 429 and 408)
+  - Network errors (`TypeError`, `AbortError`): retry eligible
+- **Backoff algorithms**
+  - Fixed delay — simple but causes thundering herd
+  - Exponential backoff — `delay * 2^n`, with jitter
+  - Linear backoff — useful for rate limits with known `Retry-After`
+- **Max retries** — cap to prevent infinite loops (3–5 typical)
+- **Retry headers** — `Retry-After` for 429 and 503
+- **Idempotency keys** — `Idempotency-Key` header for POST retries
+- **Implementation patterns**
+  - Wrapper function: `withRetry(fn, options)`
+  - Retry in the response interceptor
+  - Using `TanStack Query`'s built-in retry configuration
+- **Circuit breaker** — stop retrying when failure rate exceeds threshold, probe periodically
+
+## Offline Support / Request Queuing
+
+When the network is unavailable, the facade can queue requests and replay them once connectivity
+returns.
+
+### Outline
+
+- **Detecting offline state** — `navigator.onLine`, `online`/`offline` events
+- **Request queue** — persist pending requests to IndexedDB or localStorage
+  - Enqueue when `navigator.onLine === false` or fetch throws `TypeError`
+  - Dequeue and replay when `online` event fires
+  - Order preservation (FIFO) vs priority queue
+- **Conflict resolution** — stale data on reconnection, handling 409 Conflict
+- **Optimistic updates**
+  - Apply mutation locally before server confirmation
+  - Rollback on failure or conflict
+- **UI integration**
+  - `onQueueChange` callback to show pending count
+  - Banner or toast when offline
+- **See also** — Service Workers for a more advanced offline strategy
 
 ## API Recipes Collection
 
@@ -2017,6 +2473,62 @@ can inspect or copy.
 Each recipe is accompanied by its own README describing why you might choose it.  Feel
 free to run `pnpm install && pnpm ts-node recipes/.../api.ts` to execute them; they are
 written as executable samples.
+
+## Testing Strategies
+
+The facade's central role makes it a critical unit to test. A good test suite catches
+integration problems early and documents expected behaviour.
+
+### Outline
+
+- **What to test**
+  - URL construction — path params, query strings, base URL
+  - Request headers — auth token, content type, custom headers
+  - Body serialization — JSON, FormData, Blob
+  - Response parsing — status codes, body types, error shapes
+  - Error handling — 4xx → specific error class, 5xx → retry eligibility
+  - Auth refresh — automatic token refresh, concurrent request batching
+  - Mock mode — schema generation, validation fallback
+- **How to test**
+  - Mock `fetch` with `msw` (Mock Service Worker) — intercept at network level
+  - Mock `fetch` directly — `vi.fn()` / `jest.fn()` for simpler cases
+  - Integration test against a real API / testcontainer
+- **Test structure**
+  - Per-endpoint test file (e.g. `users.test.ts`)
+  - Shared fixtures (OpenAPI spec snippets, sample responses)
+  - Snapshot serialized requests for regression detection
+- **What not to test**
+  - The underlying `fetch` implementation
+  - Network-level concerns better covered by e2e tests
+- **See also** — [`recipes/light/api.spec.ts`](./recipes/light/api.spec.ts) for a minimal test example
+
+## Migration Guide
+
+Moving from a naive API client to a structured facade can happen incrementally. This guide
+outlines a safe transition path.
+
+### Outline
+
+- **Phase 1: Audit existing calls**
+  - List all endpoints, their methods, and current call sites
+  - Identify shared patterns: auth, error handling, base URL
+- **Phase 2: Wrap incrementally**
+  - Start with a thin facade that delegates to old code
+  - Migrate one resource/endpoint at a time
+  - Keep old and new code coexisting during transition
+- **Phase 3: Replace patterns**
+  - Hard-coded URLs → path templates + params
+  - Scattered `fetch` calls → centralized `api.fetch` methods
+  - Inline error handling → typed error classes
+  - Ad-hoc auth tokens → interceptor-based auth
+- **Phase 4: Add features**
+  - Response validation
+  - Auto-mocking in development
+  - Retry and caching
+- **Rollback strategy** — feature flags per endpoint, gradual rollout
+- **Recipe progression**
+  - Start with `naive/` → adopt `light/` → layer on `api/` core
+  - Or jump to generated methods if an OpenAPI spec exists
 
 ## Advancing Further
 
