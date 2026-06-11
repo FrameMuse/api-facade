@@ -232,6 +232,14 @@ Uploading files introduces unique challenges: progress feedback, multipart encod
 `fetch` is universal and well-known. A common desire is to improve it — but that
 doesn't have to mean hiding it behind a completely new API.
 
+Before `fetch`, all HTTP requests went through `XMLHttpRequest` (XHR) —
+event-driven, callback-based, and verbose. The `fetch` API was designed as a
+cleaner replacement built on the `Request`/`Response`/`Headers` primitives and
+native Promises. It succeeded: XHR is now rare in new code. But the desire to
+"improve `fetch`" persisted, leading many to wrap it in custom abstractions that
+lose those same primitives. Recognizing this history helps see why enhancing the
+primitives rather than replacing them is a natural alternative.
+
 ### The overshadow approach
 
 Wrapping `fetch` in a custom `apiClient(endpoint, body?)` is the most common pattern:
